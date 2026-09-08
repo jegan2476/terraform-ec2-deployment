@@ -1,4 +1,4 @@
-aws_region            = "us-east-1"
+aws_region            = "ap-south-1"
 environment           = "staging"
 instance_name         = "web-server"
 instance_type         = "t3.micro"
