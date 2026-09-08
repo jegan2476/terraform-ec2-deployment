@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS Region to deploy staging resources"
   type        = string
-  default     = "ap-south-1" # Mumbai (closest region to Chennai)
+  default     = "us-east-1" # Mumbai (closest region to Chennai)
 }
 
 variable "environment" {
