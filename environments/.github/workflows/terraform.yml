@@ -1,0 +1,87 @@
+name: "Terraform Multi-Env Deployment"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # Allows manual triggering from the GitHub Actions tab with dropdowns
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select target environment to deploy"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - prod
+      action:
+        description: "Terraform action to perform"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+# Critical for OIDC: Grants permission to request the GitHub JWT token
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    name: "Terraform Run"
+    runs-on: ubuntu-latest
+
+    # Default to input choice on manual run, or 'staging' on automatic push
+    env:
+      TARGET_ENV: ${{ github.event.inputs.environment || 'staging' }}
+      ACTION: ${{ github.event.inputs.action || 'plan' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+          audience: sts.amazonaws.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: environments/${{ env.TARGET_ENV }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: environments/${{ env.TARGET_ENV }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: environments/${{ env.TARGET_ENV }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        # Run apply only when explicitly selected via workflow_dispatch
+        if: ${{ env.ACTION == 'apply' }}
+        working-directory: environments/${{ env.TARGET_ENV }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy (Clean Up)
+        # Run destroy only when explicitly selected to clean up resources
+        if: ${{ env.ACTION == 'destroy' }}
+        working-directory: environments/${{ env.TARGET_ENV }}
+        run: terraform destroy -auto-approve

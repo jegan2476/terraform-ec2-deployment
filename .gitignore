@@ -1,0 +1,13 @@
+cat << 'EOF' > .gitignore
+# Ignore local terraform directories and state files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+ssh/
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+EOF
